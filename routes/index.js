@@ -70,7 +70,7 @@ router.post('/api', async function(req, res, next) {
   if(dataJson.isFirst){
     var result = "true 12"
     
-    exec('python shikibetu.py '+dataJson.image,(err, stdout, stderr) => {
+    exec('python infer.py '+orgPath,(err, stdout, stderr) => {
       if (err) { console.log(err); }
       var newFlag,catId,catName;
       newFlag = stdout.split(" ")[0];
@@ -80,7 +80,8 @@ router.post('/api', async function(req, res, next) {
         });
       }else{
         catId = stdout.split(" ")[1];
-        catName = stdout.split(" ")[2];
+        var resDb = await pool.query('SELECT name FROM info WHERE cat_id = ?',[catId]);
+        var name = resDb[0]["name"];
         res.json({
           isNewCat:false,
           catId:catId,
