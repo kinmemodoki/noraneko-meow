@@ -133,7 +133,7 @@ router.get('/geo', async function(req, res, next) {
   var resDb = await pool.query('SELECT geolocation.cat_id,location_x,location_y, name FROM geolocation INNER JOIN info ON geolocation.cat_id = info.cat_id');
   for(var i = 0;i<resDb.length;i++){
     if(!geoData[resDb[i].cat_id])
-      geoData[resDb[i].cat_id] = [{name:resDb[i].name}];
+      geoData[resDb[i].cat_id] = [{name:resDb[i].name,cat_id:resDb[i].cat_id}];
     geoData[resDb[i].cat_id].push({x:resDb[i].location_x, y:resDb[i].location_y});
   }
 
