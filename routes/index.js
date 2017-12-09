@@ -70,7 +70,7 @@ router.post('/api', async function(req, res, next) {
   if(dataJson.isFirst){
     var result = "true 12"
     
-    exec('python infer.py '+orgPath,async (err, stdout, stderr) => {
+    exec('python3 infer.py '+orgPath,async (err, stdout, stderr) => {
       if (err) { console.log(err); }
       var newFlag,catId,catName;
       newFlag = stdout.split(" ")[0];
@@ -150,6 +150,7 @@ router.get('/info', async function(req, res, next) {
   var latestAppear = romLatestData[0];
   var rowImageData = await pool.query('SELECT file_path FROM image WHERE cat_id = ? ORDER BY create_at ASC LIMIT 1',[catId]);
   var imagePath = rowImageData[0];
+  console.log(rowImageData);
 
   catData = {
     latestAppear: latestAppear,
