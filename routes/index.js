@@ -150,7 +150,7 @@ router.get('/info', async function(req, res, next) {
   var latestAppear = romLatestData[0];
   var rowImageData = await pool.query('SELECT file_path FROM image WHERE cat_id = ? ORDER BY create_at ASC LIMIT 1',[catId]);
   var imagePath = rowImageData[0];
-  var rowKyosei = await pool.query('SELECT surgery_flag FROM image WHERE cat_id = ?',[catId]);
+  var rowKyosei = await pool.query('SELECT surgery_flag FROM info WHERE cat_id = ?',[catId]);
   var isKyosei = rowKyosei[0];
   console.log(rowImageData);
 
