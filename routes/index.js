@@ -43,26 +43,30 @@ function createStr( n ){
 
 /*  */
 router.post('/api', async function(req, res, next) {
-  const dataJson = req.body;
+  var dataJson = req.body;
+  var writeErrFlag = false;
   if(typeof req.body == "string"){
     dataJson = JSON.parse(req.body);
   }
 
   var orgPath = dataJson.session+'/'+createStr(12)+".png";
   var imageList = await cache.getAsync(dataJson.session);
-  images = JSON.parse(imageList);
+  var images = JSON.parse(imageList);
   var decode = new Buffer(dataJson.image,'base64');
   writeFile(imgRoot+orgPath, decode , function (err) {
     console.log(err);
+    if(!err){
+      if(!imageList){
+        images = {};
+        console.log("redisにデータがないよ");
+      }
+      console.log("l : ",Object.keys(images).length)
+      images[Object.keys(images).length] = orgPath;
+      cache.set(dataJson.session, JSON.stringify(images));
+    }
   });
-  if(!imageList){
-    images = {};
-    console.log("redisにデータがないよ");
-  }
-  console.log("l : ",Object.keys(images).length)
-  images[Object.keys(images).length] = orgPath;
-  cache.set(dataJson.session, JSON.stringify(images));
 
+  //新旧判定するか否か
   if(dataJson.isFirst){
     var result = "true 12"
     
@@ -82,32 +86,50 @@ router.post('/api', async function(req, res, next) {
           catId:catId,
           name:name
         });
-        pool.query('INSERT INTO geolocation(cat_id,location_x,location_y) VALUES(?,?,?)',catId,dataJson.pos.lat,dataJson.pos.lng);
+        pool.query('INSERT INTO geolocation(cat_id,location_x,location_y) VALUES(?,?,?)',catId,dataJson.pos_x,dataJson.pos_y);
       }
     });
+  }else{
+    res.json({res:"ok"});
   }
-
-  if(dataJson.isLast){
-    for(key in images){
-      await pool.query('INSERT INTO image(image) VALUES(?)',images[key]);
-      //await pool.query('INSERT INTO image(image) VALUES(?)',images[key]);
-    }
-  }
-
-  res.json({res:"ok"});
-
 });
 /*
 {
   image:"sdfjlasjfljlsaf==",(BASE64),
-  pos:{lat:23.0242, lng:142.3333},
+  pos_x:23.0242,
+  pos_y:142.3333,
   session:"asdjfahsdfhaskjdfhaushdfu" //撮影する猫ごとに適当なランダム文字列
   isFirst:true,
   isLast:false
 }
+*/
 
+router.post('/naming', async function(req, res, next) {
+  var dataJson = req.body;
+  if(typeof req.body == "string"){
+    dataJson = JSON.parse(req.body);
+  }
 
+  await pool.query('INSERT INTO info(name) VALUES(?)',dataJson.name);
+  var resDb = await pool.query('SELECT cat_id FROM info WHERE name = ? LIMIT 1',dataJson.name);
+  var catId = resDb[0]["cat_id"];
 
+  pool.query('INSERT INTO geolocation(cat_id,location_x,location_y) VALUES(?,?,?)',catId,dataJson.pos_x,dataJson.pos_y);
+
+  var imageList = await cache.getAsync(dataJson.session);
+  var images = JSON.parse(imageList);
+  for(key in images){
+    pool.query('INSERT INTO image(cat_id,location_x,location_y) VALUES(?,?,?)',catId,dataJson.pos_x,dataJson.pos_y);
+  }
+  res.json({res:"ok"});
+});
+/*
+{
+  pos_x:23.0242,
+  pos_y:142.3333,
+  session:"asdjfahsdfhaskjdfhaushdfu", //撮影する猫ごとに適当なランダム文字列
+  name:"ひじき"
+}
 */
 
 module.exports = router;
