@@ -86,7 +86,7 @@ router.post('/api', async function(req, res, next) {
           catId:catId,
           name:name
         });
-        pool.query('INSERT INTO geolocation(cat_id,location_x,location_y) VALUES(?,?,?)',catId,dataJson.pos_x,dataJson.pos_y);
+        pool.query('INSERT INTO geolocation(cat_id,location_x,location_y) VALUES (?,?,?)',[catId,dataJson.pos_x,dataJson.pos_y]);
       }
     });
   }else{
@@ -110,26 +110,53 @@ router.post('/naming', async function(req, res, next) {
     dataJson = JSON.parse(req.body);
   }
 
-  await pool.query('INSERT INTO info(name) VALUES(?)',dataJson.name);
+  await pool.query('INSERT INTO info(name) VALUES (?)',dataJson.name);
+  
   var resDb = await pool.query('SELECT cat_id FROM info WHERE name = ? LIMIT 1',dataJson.name);
   var catId = resDb[0]["cat_id"];
+  console.log(catId);
 
-  pool.query('INSERT INTO geolocation(cat_id,location_x,location_y) VALUES(?,?,?)',catId,dataJson.pos_x,dataJson.pos_y);
+  pool.query('INSERT INTO geolocation(cat_id,location_x,location_y) VALUES (?,?,?)',[catId,dataJson.pos_x,dataJson.pos_y]);
 
   var imageList = await cache.getAsync(dataJson.session);
   var images = JSON.parse(imageList);
   for(key in images){
-    pool.query('INSERT INTO image(cat_id,location_x,location_y) VALUES(?,?,?)',catId,dataJson.pos_x,dataJson.pos_y);
+    pool.query('INSERT INTO image(cat_id,file_path) VALUES (?,?)',[catId,images[key]]);
   }
   res.json({res:"ok"});
 });
-/*
-{
-  pos_x:23.0242,
-  pos_y:142.3333,
-  session:"asdjfahsdfhaskjdfhaushdfu", //撮影する猫ごとに適当なランダム文字列
-  name:"ひじき"
-}
-*/
+
+
+router.get('/geo', async function(req, res, next) {
+  var geoData = {};
+  var resDb = await pool.query('SELECT geolocation.cat_id,location_x,location_y, name FROM geolocation INNER JOIN info ON geolocation.cat_id = info.cat_id');
+  for(var i = 0;i<resDb.length;i++){
+    if(!geoData[resDb[i].cat_id])
+      geoData[resDb[i].cat_id] = [{name:resDb[i].name}];
+    geoData[resDb[i].cat_id].push({x:resDb[i].location_x, y:resDb[i].location_y});
+  }
+
+  res.json(geoData);
+});
+
+
+// GET /info?cat_id=1
+router.get('/info', async function(req, res, next) {
+  var catId = req.query.cat_id;
+
+  var catData = {};
+  var romLatestData = await pool.query('SELECT create_at,location_x,location_y FROM geolocation WHERE cat_id = ? ORDER BY geo_id DESC LIMIT 1',[catId]);
+  var latestAppear = romLatestData[0];
+  var rowImageData = await pool.query('SELECT file_path FROM image WHERE cat_id = ? ORDER BY create_at ASC LIMIT 1',[catId]);
+  var imagePath = rowImageData[0];
+
+  catData = {
+    latestAppear: latestAppear,
+    imagePath: imagePath
+  }
+
+  res.json(catData);
+});
+
 
 module.exports = router;
