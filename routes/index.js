@@ -164,4 +164,38 @@ router.get('/info', async function(req, res, next) {
 });
 
 
+/*{
+  image:"faskdfajldkfalsfsa==",
+  name:"abe"  
+  pos_x:"23.0242",
+  pos_y:"142.3333",
+}*/
+router.post('/resist', async function(req, res, next) {
+  var dataJson = req.body;
+  if(typeof req.body == "string"){
+    dataJson = JSON.parse(req.body);
+  }
+
+  await pool.query('INSERT INTO info(name,surgery_flag) VALUES (?,0)',dataJson.name);
+  
+  var resDb = await pool.query('SELECT cat_id FROM info WHERE name = ? LIMIT 1',dataJson.name);
+  var catId = resDb[0]["cat_id"];
+  console.log(catId);
+
+  pool.query('INSERT INTO geolocation(cat_id,location_x,location_y) VALUES (?,?,?)',[catId,dataJson.pos_x,dataJson.pos_y]);
+
+  var orgPath = createStr(12)+'/'+createStr(12)+".png";
+  var decode = new Buffer(dataJson.image,'base64');
+  writeFile(imgRoot+orgPath, decode , function (err) {
+    console.log(err);
+    if(!err){
+      console.log('img/'+orgPath);
+      pool.query('INSERT INTO image(cat_id,file_path) VALUES (?,?)',[catId,'img/'+orgPath]);
+    }
+  });
+
+  res.json({res:"ok"});
+});
+
+
 module.exports = router;
